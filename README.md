@@ -4,7 +4,7 @@
 The Laravel Crypto Wallet API is a simple RESTful API that allows users to manage crypto accounts for multiple coins such as Bitcoin, Ethereum, and Litecoin. It provides endpoints to view user balances, transfer funds between users, list transactions, and convert balances between different cryptocurrencies using live market rates.
 
 ### Installation Instructions
-To set up the Laravel Crypto Wallet API on your local environment, follow these steps:
+To set up the Crypto Wallet API on your local environment, follow these steps:
 
 1. Clone the repository:
     
