@@ -36,7 +36,11 @@ To set up the Laravel Crypto Wallet API on your local environment, follow these 
 7. Start the development server:
     
     php artisan serve
-    
+
+
+8. To check the documentation    
+     
+    localhost:8000/doc.html
 
 ### Design and Assumptions
 The project follows a simple design where users can manage their crypto accounts and perform transactions. Here are some design decisions and assumptions:
