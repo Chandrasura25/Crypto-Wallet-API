@@ -13,11 +13,15 @@ return new class extends Migration
     {
         Schema::create('crypto_accounts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('user_id');
             $table->string('coin_type'); // For example: Bitcoin, Litecoin, Ethereum, etc.
             $table->decimal('balance', 18, 8)->default(0); // Balance stored as decimal to handle fractional values
             $table->timestamps();
+        
+            // Define foreign key constraint
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
+        
     }
 
     /**
