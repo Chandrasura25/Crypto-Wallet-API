@@ -54,14 +54,21 @@ class CryptoWalletApiTest extends TestCase
         // Create sender and recipient users
         $sender = User::factory()->create();
         $recipient = User::factory()->create();
-
+    
         // Create crypto account for sender
         $sourceAccount = CryptoAccount::factory()->create([
             'user_id' => $sender->id,
             'coin_type' => 'bitcoin',
             'balance' => 100, // Example balance
         ]);
-
+    
+        // Create crypto account for recipient
+        $destinationAccount = CryptoAccount::factory()->create([
+            'user_id' => $recipient->id,
+            'coin_type' => 'bitcoin',
+            'balance' => 0, // Initialize recipient's balance
+        ]);
+    
         // Send POST request to /api/transfer
         $response = $this->actingAs($sender)
                          ->post('/api/transfer', [
@@ -69,13 +76,20 @@ class CryptoWalletApiTest extends TestCase
                              'source_crypto_account_id' => $sourceAccount->id,
                              'amount' => 50, // Example transfer amount
                          ]);
-
+    
         // Assert response status code
         $response->assertStatus(200);
-
-        // Assert response JSON structure or message
-        // Add more assertions as needed
+    
+        // Assert that funds were transferred successfully
+        $response->assertJson(['message' => 'Funds transferred successfully']);
+    
+        // Assert sender's balance decreased by the transfer amount
+        $this->assertEquals(50, $sender->cryptoAccounts()->where('id', $sourceAccount->id)->first()->balance);
+    
+        // Assert recipient's balance increased by the transfer amount
+        $this->assertEquals(50, $recipient->cryptoAccounts()->where('id', $destinationAccount->id)->first()->balance);
     }
+    
 
     public function testListTransactions()
     {
