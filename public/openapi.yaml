@@ -1,0 +1,138 @@
+openapi: 3.0.0
+info:
+  title: Crypto Wallet API
+  version: 1.0.0
+  description: |
+    API documentation for a simple crypto wallet API that maintains crypto accounts for users across multiple coins, such as Bitcoin, Ethereum, and Litecoin. It includes endpoints to get user balances, transfer funds to another user through email, get a list of transactions, and convert the balance from one coin to another using a live market rate.
+
+    Some useful links:
+    - [The Crypto Wallet API repository](https://github.com/Chandrasura25/Crypto-Wallet-API)
+
+paths:
+  /api/register:
+    post:
+      summary: Register a new user
+      description: Register a new user using phone and password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  format: phone
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+              required:
+                - phone
+                - email
+                - password
+      responses:
+        '201':
+          description: User registered successfully
+        '422':
+          description: Validation error
+
+  /api/login:
+    post:
+      summary: Login as an existing user
+      description: Login as an existing user to obtain an access token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  format: phone
+                password:
+                  type: string
+              required:
+                - phone
+                - password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+        '401':
+          description: Unauthorized - Invalid credentials
+
+  /api/crypto-accounts:
+    get:
+      summary: Retrieve user balances
+      description: Retrieve balances of all crypto accounts belonging to the authenticated user.
+      responses:
+        '200':
+          description: Successful operation
+
+  /api/transfer:
+    post:
+      summary: Transfer funds
+      description: Transfer funds from one user to another.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipient_email:
+                  type: string
+                  format: email
+                source_crypto_account_id:
+                  type: integer
+                amount:
+                  type: number
+              required:
+                - recipient_email
+                - source_crypto_account_id
+                - amount
+      responses:
+        '200':
+          description: Funds transferred successfully
+
+  /api/transactions:
+    get:
+      summary: List transactions
+      description: Retrieve a list of transactions for the authenticated user.
+      responses:
+        '200':
+          description: Successful operation
+
+  /api/convert:
+    post:
+      summary: Convert balance
+      description: Convert balance from one cryptocurrency to another.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source_coin:
+                  type: string
+                target_coin:
+                  type: string
+                amount:
+                  type: number
+              required:
+                - source_coin
+                - target_coin
+                - amount
+      responses:
+        '200':
+          description: Balance converted successfully
