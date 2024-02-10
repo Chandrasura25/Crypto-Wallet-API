@@ -13,7 +13,7 @@ To set up the Crypto Wallet API on your local environment, follow these steps:
 
 2. Navigate to the project directory:
     
-    cd laravel-crypto-wallet-api
+    cd crypto-wallet-api
     
 
 3. Install PHP dependencies using Composer:
@@ -40,7 +40,7 @@ To set up the Crypto Wallet API on your local environment, follow these steps:
 
 8. To check the documentation    
      
-    localhost:8000/doc.html
+    http://localhost:8000/doc.html
 
 ### Design and Assumptions
 The project follows a simple design where users can manage their crypto accounts and perform transactions. Here are some design decisions and assumptions:
