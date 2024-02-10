@@ -24,7 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::resource('crypto-accounts', CryptoAccountController::class);
     
     Route::get('/transactions', [TransactionController::class, 'index']);
-    Route::post('/transactions', [TransactionController::class, 'store']);
+    Route::post('/transferFunds', [TransactionController::class, 'transferFunds']);
     Route::get('/transactions/{transaction}',[TransactionController::class, 'show']);
     
     Route::post('/convert', [CryptoPriceController::class, 'convertBalance']);

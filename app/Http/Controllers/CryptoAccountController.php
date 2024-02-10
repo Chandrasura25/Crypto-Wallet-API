@@ -36,6 +36,7 @@ class CryptoAccountController extends Controller
         // Create a new crypto account for the authenticated user
         $cryptoAccount = auth()->user()->cryptoAccounts()->create([
             'coin_type' => $request->coin_type,
+            'user_id' => auth()->id(),
             'balance' => 0, // Assuming initial balance is 0
         ]);
 

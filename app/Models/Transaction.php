@@ -10,8 +10,9 @@ class Transaction extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'crypto_account_id',
-        'type',
+        'source_crypto_account_id',
+        'destination_crypto_account_id',
+        'coin_type',
         'amount',
     ];
 

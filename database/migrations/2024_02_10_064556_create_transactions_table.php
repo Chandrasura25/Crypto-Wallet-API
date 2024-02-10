@@ -13,8 +13,9 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('crypto_account_id')->constrained()->onDelete('cascade');
-            $table->string('type'); // e.g., deposit, withdrawal
+            $table->foreignId('source_crypto_account_id')->constrained()->onDelete('cascade');
+            $table->foreignId('destination_crypto_account_id')->constrained()->onDelete('cascade');
+            $table->string('coin_type'); 
             $table->decimal('amount', 18, 8);
             $table->timestamps();
         });

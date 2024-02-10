@@ -11,12 +11,14 @@ class AuthController extends Controller
     public function register(Request $request){
         $request->validate([
             'phone' => 'required|unique:users',
+            'email' => 'required|unique:users',
             'password' => 'required|string|min:8',
            
         ]);
 
         $formfields = ([
             'phone' => $request->phone,
+            'email' => $request->email,
             'password' => bcrypt($request->password),
         ]);
 

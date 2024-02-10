@@ -16,41 +16,6 @@ class TransactionController extends Controller
         return response()->json($transactions);
     }
 
-    public function store(Request $request)
-    {
-        // Validate the incoming request data
-        $request->validate([
-            'source_crypto_account_id' => 'required|exists:crypto_accounts,id',
-            'destination_crypto_account_id' => 'required|exists:crypto_accounts,id',
-            'amount' => 'required|numeric|min:0',
-        ]);
-
-        // Retrieve the source and destination crypto accounts
-        $sourceCryptoAccount = CryptoAccount::findOrFail($request->source_crypto_account_id);
-        $destinationCryptoAccount = CryptoAccount::findOrFail($request->destination_crypto_account_id);
-
-        // Ensure both crypto accounts belong to the same cryptocurrency
-        if ($sourceCryptoAccount->coin_type !== $destinationCryptoAccount->coin_type) {
-            return response()->json(['error' => 'Cannot transfer between different cryptocurrencies'], 422);
-        }
-
-        // Perform other validation logic as needed
-
-        // Create the transaction
-        $transaction = Transaction::create([
-            'source_crypto_account_id' => $sourceCryptoAccount->id,
-            'destination_crypto_account_id' => $destinationCryptoAccount->id,
-            'amount' => $request->amount,
-        ]);
-
-        // Update balances of source and destination crypto accounts
-        $sourceCryptoAccount->update(['balance' => $sourceCryptoAccount->balance - $request->amount]);
-        $destinationCryptoAccount->update(['balance' => $destinationCryptoAccount->balance + $request->amount]);
-
-        // Return a response
-        return response()->json($transaction, 201);
-    }
-
     public function show(Transaction $transaction)
     {
         // Ensure the transaction belongs to the authenticated user
@@ -63,15 +28,16 @@ class TransactionController extends Controller
     }
     public function transferFunds(Request $request)
     {
+        
+        // Get the authenticated user
+        $sender = auth()->user();
+
         // Validate the request
         $request->validate([
             'recipient_email' => 'required|email',
             'source_crypto_account_id' => 'required|exists:crypto_accounts,id',
             'amount' => 'required|numeric|min:0',
         ]);
-
-        // Get the authenticated user
-        $sender = auth()->user();
 
         // Find the source crypto account
         $sourceCryptoAccount = CryptoAccount::findOrFail($request->source_crypto_account_id);
@@ -97,11 +63,19 @@ class TransactionController extends Controller
         if ($sourceCryptoAccount->balance < $request->amount) {
             return response()->json(['error' => 'Insufficient balance in the source crypto account'], 422);
         }
+       // Retrieve the source and destination crypto accounts
+        $sourceCryptoAccount = CryptoAccount::findOrFail($request->source_crypto_account_id);
+        $destinationCryptoAccount = CryptoAccount::findOrFail($request->$recipient->cryptoAccounts()->crypto_accounts_id);
 
+        // Ensure both crypto accounts belong to the same cryptocurrency
+        if ($sourceCryptoAccount->coin_type !== $destinationCryptoAccount->coin_type) {
+            return response()->json(['error' => 'Cannot transfer between different cryptocurrencies'], 422);
+        }
         // Transfer funds: Deduct from sender's balance and add to recipient's balance
         $transaction = new Transaction();
         $transaction->source_crypto_account_id = $sourceCryptoAccount->id;
-        $transaction->destination_user_id = $recipient->id;
+        $transaction->destination_crypto_account_id = $recipient->id;
+        $transaction->coin_type = $sourceCryptoAccount->coin_type;
         $transaction->amount = $request->amount;
         $transaction->save();
 
