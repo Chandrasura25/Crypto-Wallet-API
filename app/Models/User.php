@@ -42,8 +42,22 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
     public function cryptoAccounts()
-{
-    return $this->hasMany(CryptoAccount::class);
-}
+    {
+        return $this->hasMany(CryptoAccount::class);
+    }
+
+    /**
+     * Every transaction this user sent or received, newest first.
+     */
+    public function transactions()
+    {
+        $accountIds = $this->cryptoAccounts()->pluck('id');
+
+        return Transaction::query()
+            ->whereIn('source_crypto_account_id', $accountIds)
+            ->orWhereIn('destination_crypto_account_id', $accountIds)
+            ->latest();
+    }
 }

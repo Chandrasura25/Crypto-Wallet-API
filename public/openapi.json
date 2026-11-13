@@ -1,197 +1,269 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.3",
   "info": {
     "title": "Crypto Wallet API",
-    "version": "1.0.0",
-    "description": "API documentation for a simple crypto wallet API that maintains crypto accounts for users across multiple coins, such as Bitcoin, Ethereum, and Litecoin. It includes endpoints to get user balances, transfer funds to another user through email, get a list of transactions, and convert the balance from one coin to another using a live market rate.\n\nSome useful links:\n- [The Crypto Wallet API repository](https://github.com/Chandrasura25/Crypto-Wallet-API)\n"
+    "version": "1.1.0",
+    "description": "A Laravel 10 REST API that keeps multi-coin crypto balances for users (Bitcoin, Ethereum, Litecoin and any CoinGecko coin id).\n\n- **Auth:** register / log in with phone + password, get a Laravel Sanctum bearer token.\n- **Transfers:** send coins to another user by email, inside a database transaction with row locks so balances can't be overspent.\n- **Conversion:** swap between coins at the live CoinGecko USD rate.\n\nSource: [github.com/Chandrasura25/Crypto-Wallet-API](https://github.com/Chandrasura25/Crypto-Wallet-API)"
   },
+  "servers": [
+    { "url": "http://localhost:8000", "description": "Local (php artisan serve)" }
+  ],
+  "tags": [
+    { "name": "Auth" },
+    { "name": "Accounts", "description": "One account per coin type" },
+    { "name": "Transfers" },
+    { "name": "Transactions" },
+    { "name": "Conversion" }
+  ],
   "paths": {
     "/api/register": {
       "post": {
-        "summary": "Register a new user",
-        "description": "Register a new user using phone and password.",
+        "tags": ["Auth"],
+        "summary": "Create a user and return a token",
         "requestBody": {
           "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "phone": {
-                    "type": "string",
-                    "format": "phone"
-                  },
-                  "email": {
-                    "type": "string",
-                    "format": "email"
-                  },
-                  "password": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "phone",
-                  "email",
-                  "password"
-                ]
-              }
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["phone", "email", "password"],
+            "properties": {
+              "phone": { "type": "string", "example": "+2348000000000" },
+              "email": { "type": "string", "format": "email", "example": "ada@example.com" },
+              "password": { "type": "string", "minLength": 8, "example": "secret-password" }
             }
-          }
+          } } }
         },
         "responses": {
-          "201": {
-            "description": "User registered successfully"
-          },
-          "422": {
-            "description": "Validation error"
-          }
+          "201": { "description": "Registered", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
         }
       }
     },
     "/api/login": {
       "post": {
-        "summary": "Login as an existing user",
-        "description": "Login as an existing user to obtain an access token.",
+        "tags": ["Auth"],
+        "summary": "Log in with phone and password",
         "requestBody": {
           "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "phone": {
-                    "type": "string",
-                    "format": "phone"
-                  },
-                  "password": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "phone",
-                  "password"
-                ]
-              }
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["phone", "password"],
+            "properties": {
+              "phone": { "type": "string", "example": "+2348000000000" },
+              "password": { "type": "string", "example": "secret-password" }
             }
-          }
+          } } }
         },
         "responses": {
-          "200": {
-            "description": "Login successful",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "access_token": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized - Invalid credentials"
-          }
+          "200": { "description": "Logged in", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "401": { "description": "Incorrect credentials" }
         }
       }
     },
     "/api/crypto-accounts": {
       "get": {
-        "summary": "Retrieve user balances",
-        "description": "Retrieve balances of all crypto accounts belonging to the authenticated user.",
+        "tags": ["Accounts"],
+        "summary": "List my accounts and balances",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
-          "200": {
-            "description": "Successful operation"
-          }
+          "200": { "description": "My accounts", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CryptoAccount" } } } } },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      },
+      "post": {
+        "tags": ["Accounts"],
+        "summary": "Open an account for a coin (starts at 0)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object", "required": ["coin_type"],
+            "properties": { "coin_type": { "type": "string", "description": "CoinGecko coin id, case-insensitive", "example": "bitcoin" } }
+          } } }
+        },
+        "responses": {
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CryptoAccount" } } } },
+          "422": { "description": "You already have an account for this coin" }
+        }
+      }
+    },
+    "/api/crypto-accounts/{id}": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+      "get": {
+        "tags": ["Accounts"], "summary": "Get one of my accounts", "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Account", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CryptoAccount" } } } },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "put": {
+        "tags": ["Accounts"], "summary": "Change an account's coin type", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["coin_type"], "properties": { "coin_type": { "type": "string", "example": "litecoin" } } } } } },
+        "responses": {
+          "200": { "description": "Updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CryptoAccount" } } } },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      },
+      "delete": {
+        "tags": ["Accounts"], "summary": "Close an empty account", "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "422": { "description": "Account still holds a balance" }
         }
       }
     },
     "/api/transfer": {
       "post": {
-        "summary": "Transfer funds",
-        "description": "Transfer funds from one user to another.",
+        "tags": ["Transfers"],
+        "summary": "Send coins to another user by email",
+        "description": "Both users must hold an account for the same coin. Runs in a DB transaction with `SELECT … FOR UPDATE` row locks. `/api/transferFunds` is an alias kept for older clients.",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "recipient_email": {
-                    "type": "string",
-                    "format": "email"
-                  },
-                  "source_crypto_account_id": {
-                    "type": "integer"
-                  },
-                  "amount": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "recipient_email",
-                  "source_crypto_account_id",
-                  "amount"
-                ]
-              }
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["recipient_email", "source_crypto_account_id", "amount"],
+            "properties": {
+              "recipient_email": { "type": "string", "format": "email", "example": "grace@example.com" },
+              "source_crypto_account_id": { "type": "integer", "example": 1 },
+              "amount": { "type": "number", "exclusiveMinimum": true, "minimum": 0, "example": 0.25 }
             }
-          }
+          } } }
         },
         "responses": {
-          "200": {
-            "description": "Funds transferred successfully"
-          }
+          "200": { "description": "Transferred", "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": {
+              "message": { "type": "string", "example": "Funds transferred successfully" },
+              "transaction": { "$ref": "#/components/schemas/Transaction" }
+            }
+          } } } },
+          "403": { "description": "The source account isn't yours" },
+          "404": { "description": "Recipient not found, or recipient has no account for this coin" },
+          "422": { "description": "Insufficient balance, sending to yourself, or invalid input" }
         }
       }
     },
     "/api/transactions": {
       "get": {
-        "summary": "List transactions",
-        "description": "Retrieve a list of transactions for the authenticated user.",
+        "tags": ["Transactions"],
+        "summary": "List transactions I sent or received (newest first)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
-          "200": {
-            "description": "Successful operation"
-          }
+          "200": { "description": "Transactions", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/TransactionWithAccounts" } } } } }
+        }
+      }
+    },
+    "/api/transactions/{id}": {
+      "get": {
+        "tags": ["Transactions"],
+        "summary": "Get one transaction I'm part of",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Transaction", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransactionWithAccounts" } } } },
+          "403": { "$ref": "#/components/responses/Forbidden" }
         }
       }
     },
     "/api/convert": {
       "post": {
-        "summary": "Convert balance",
-        "description": "Convert balance from one cryptocurrency to another.",
+        "tags": ["Conversion"],
+        "summary": "Convert between coins at the live market rate",
+        "description": "`converted = amount × price(source) ÷ price(target)` using CoinGecko USD prices. The target account is created if you don't have one, and the converted amount is **added** to its balance.",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "source_coin": {
-                    "type": "string"
-                  },
-                  "target_coin": {
-                    "type": "string"
-                  },
-                  "amount": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "source_coin",
-                  "target_coin",
-                  "amount"
-                ]
-              }
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["source_coin", "target_coin", "amount"],
+            "properties": {
+              "source_coin": { "type": "string", "example": "bitcoin" },
+              "target_coin": { "type": "string", "example": "ethereum" },
+              "amount": { "type": "number", "example": 0.5 }
             }
-          }
+          } } }
         },
         "responses": {
-          "200": {
-            "description": "Balance converted successfully"
-          }
+          "200": { "description": "Converted", "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": {
+              "message": { "type": "string", "example": "Balance converted successfully" },
+              "rate": { "type": "number", "example": 20 },
+              "converted_amount": { "type": "string", "example": "10.00000000" },
+              "source_account": { "$ref": "#/components/schemas/CryptoAccount" },
+              "target_account": { "$ref": "#/components/schemas/CryptoAccount" }
+            }
+          } } } },
+          "404": { "description": "You have no account for the source coin" },
+          "422": { "description": "Insufficient balance, same source and target, or invalid input" },
+          "502": { "description": "Price feed unavailable" }
         }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "description": "Sanctum token from /api/register or /api/login" }
+    },
+    "responses": {
+      "Unauthenticated": { "description": "Missing or invalid token" },
+      "Forbidden": { "description": "The resource belongs to another user" },
+      "ValidationError": { "description": "Validation failed", "content": { "application/json": { "schema": {
+        "type": "object",
+        "properties": { "message": { "type": "string" }, "errors": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } } } }
+      } } } }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "email": { "type": "string", "example": "ada@example.com" },
+          "phone": { "type": "string", "example": "+2348000000000" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "message": { "$ref": "#/components/schemas/User" },
+          "token": { "type": "string", "example": "1|Xq3…" }
+        }
+      },
+      "CryptoAccount": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "user_id": { "type": "integer", "example": 1 },
+          "coin_type": { "type": "string", "example": "bitcoin" },
+          "balance": { "type": "string", "description": "Decimal with 8 places", "example": "1.50000000" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 7 },
+          "source_crypto_account_id": { "type": "integer", "example": 1 },
+          "destination_crypto_account_id": { "type": "integer", "example": 4 },
+          "coin_type": { "type": "string", "example": "bitcoin" },
+          "amount": { "type": "string", "example": "0.25000000" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TransactionWithAccounts": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Transaction" },
+          { "type": "object", "properties": {
+            "source_account": { "$ref": "#/components/schemas/CryptoAccount" },
+            "destination_account": { "$ref": "#/components/schemas/CryptoAccount" }
+          } }
+        ]
       }
     }
   }

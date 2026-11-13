@@ -1,96 +1,87 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\CryptoAccount;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CryptoAccountController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * List the authenticated user's crypto accounts and balances.
      */
     public function index()
     {
-        $cryptoAccounts = auth()->user()->cryptoAccounts()->with('transactions')->get();
-        return response()->json($cryptoAccounts);
+        return response()->json(auth()->user()->cryptoAccounts()->get());
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
+     * Open a new crypto account (one per coin type) with a zero balance.
      */
     public function store(Request $request)
     {
-        // Validation
+        $request->merge(['coin_type' => strtolower((string) $request->coin_type)]);
+
         $request->validate([
-            'coin_type' => 'required|string',
+            'coin_type' => [
+                'required',
+                'string',
+                Rule::unique('crypto_accounts')->where('user_id', auth()->id()),
+            ],
         ]);
 
-        // Create a new crypto account for the authenticated user
         $cryptoAccount = auth()->user()->cryptoAccounts()->create([
             'coin_type' => $request->coin_type,
-            'user_id' => auth()->id(),
-            'balance' => 0, // Assuming initial balance is 0
+            'balance' => 0,
         ]);
 
         return response()->json($cryptoAccount, 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(CryptoAccount $crypto_account)
     {
-        // Check if the crypto account belongs to the authenticated user
         if ($crypto_account->user_id !== auth()->id()) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['error' => 'Forbidden'], 403);
         }
 
         return response()->json($crypto_account);
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
+     * Rename the coin type of an account. Balances can only change through transfers and conversions.
      */
     public function update(Request $request, CryptoAccount $crypto_account)
     {
-        // Check if the crypto account belongs to the authenticated user
         if ($crypto_account->user_id !== auth()->id()) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['error' => 'Forbidden'], 403);
         }
 
-        // Update the crypto account
-        $crypto_account->update($request->only(['coin_type']));
+        $request->merge(['coin_type' => strtolower((string) $request->coin_type)]);
+
+        $request->validate([
+            'coin_type' => [
+                'required',
+                'string',
+                Rule::unique('crypto_accounts')->where('user_id', auth()->id())->ignore($crypto_account->id),
+            ],
+        ]);
+
+        $crypto_account->update(['coin_type' => $request->coin_type]);
 
         return response()->json($crypto_account);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(CryptoAccount $crypto_account)
     {
-        // Check if the crypto account belongs to the authenticated user
         if ($crypto_account->user_id !== auth()->id()) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['error' => 'Forbidden'], 403);
         }
 
-        // Delete the crypto account
+        if ($crypto_account->balance > 0) {
+            return response()->json(['error' => 'Account still holds a balance; transfer or convert it first'], 422);
+        }
+
         $crypto_account->delete();
 
         return response()->json(['message' => 'Crypto account deleted successfully']);
